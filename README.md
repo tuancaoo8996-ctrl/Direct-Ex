@@ -161,3 +161,10 @@ newExtension/
 
 Note: Effort for this assignment : 
 This is a fairly new product to me. To be honest, getting familiar with it took quite a bit of time to read the documentation, set up the environment, and do testing and development, especially since it doesn’t seem to support a hot-reload mechanism. For the currency-format feature alone, building and testing already took around 3 hours. As for the bulk-update API endpoint, I believe it took even more time.
+
+
+
+
+![alt text](image.png)
+![alt text](image-1.png)
+![alt text](image-2.png)

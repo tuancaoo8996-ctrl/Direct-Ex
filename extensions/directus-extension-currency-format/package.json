@@ -27,5 +27,6 @@
 	"devDependencies": {
 		"@directus/extensions-sdk": "17.0.4",
 		"vue": "^3.5.26"
-	}
+	},
+	"license": "MIT"
 }
