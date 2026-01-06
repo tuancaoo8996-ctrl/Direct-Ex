@@ -1,0 +1,12 @@
+[
+    { "name": "Supplier A", "email": "a@supplier.com", "status": "active" },
+    { "name": "Supplier B", "email": "b@supplier.com", "status": "active" },
+    { "name": "Supplier C", "email": "c@supplier.com", "status": "active" },
+    { "name": "Supplier D", "email": "d@supplier.com", "status": "active" },
+    { "name": "Supplier E", "email": "e@supplier.com", "status": "active" },
+    { "name": "Supplier F", "email": "f@supplier.com", "status": "active" },
+    { "name": "Supplier G", "email": "g@supplier.com", "status": "active" },
+    { "name": "Supplier H", "email": "h@supplier.com", "status": "active" },
+    { "name": "Supplier I", "email": "i@supplier.com", "status": "active" },
+    { "name": "Supplier J", "email": "j@supplier.com", "status": "active" }
+]

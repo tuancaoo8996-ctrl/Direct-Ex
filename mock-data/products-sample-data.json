@@ -1,0 +1,12 @@
+[
+    { "name": "Laptop", "price": 1200, "stock": 10 },
+    { "name": "Desktop", "price": 800, "stock": 5 },
+    { "name": "Tablet", "price": 500, "stock": 15 },
+    { "name": "Smartphone", "price": 300, "stock": 20 },
+    { "name": "Monitor", "price": 200, "stock": 10 },
+    { "name": "Keyboard", "price": 50, "stock": 50 },
+    { "name": "Mouse", "price": 30, "stock": 30 },
+    { "name": "Speaker", "price": 100, "stock": 20 },
+    { "name": "Headphones", "price": 80, "stock": 15 },
+    { "name": "Broken Product", "price": -100, "stock": -5 }
+]

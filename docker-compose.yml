@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: newproject_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: ${PGDATA}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [pgnet]
+
+  pgadmin:
+      image: dpage/pgadmin4:latest
+      container_name: newproject_pgadmin
+      restart: unless-stopped
+      environment:
+        PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+        PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+        PGADMIN_CONFIG_SERVER_MODE: "False"
+      ports:
+        - "${PGADMIN_PORT}:80"
+      volumes:
+        - pgadmin_data:/var/lib/pgadmin
+      depends_on:
+        postgres:
+          condition: service_healthy
+      networks: [pgnet]
+      
+  directus:
+    image: directus/directus:latest
+    container_name: newproject_directus
+    restart: unless-stopped
+    ports:
+      - "8056:8055"
+    env_file:
+      - .env
+    environment:
+      EXTENSIONS_AUTO_RELOAD: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./extensions:/directus/extensions
+      - ./uploads:/directus/uploads
+    networks: [pgnet]
+    
+volumes:
+  pg_data:
+  pgadmin_data:
+
+networks:
+  pgnet:
+    driver: bridge

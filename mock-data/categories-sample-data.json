@@ -1,0 +1,12 @@
+[
+  { "name": "Electronics", "description": "Electronic devices" },
+  { "name": "Furniture", "description": "Home furniture" },
+  { "name": "Books", "description": "Books and documents" },
+  { "name": "Office", "description": "Office supplies" },
+  { "name": "Gaming", "description": "Gaming products" },
+  { "name": "Education", "description": "Education materials" },
+  { "name": "Clothing", "description": "Clothes and fashion" },
+  { "name": "Accessories", "description": "Accessories" },
+  { "name": "Home Appliances", "description": "Appliances" },
+  { "name": "Tools", "description": "Hardware tools" }
+]
