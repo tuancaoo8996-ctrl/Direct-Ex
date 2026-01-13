@@ -110,11 +110,195 @@ if ($LASTEXITCODE -ne 0) {
 
 # 5. Wait for Directus to be ready
 Write-Host "Waiting for Directus to start..."
-Start-Sleep -Seconds 10
+$maxRetries = 30
+$retryCount = 0
+$directusReady = $false
 
+while ($retryCount -lt $maxRetries) {
+    try {
+        $response = Invoke-WebRequest -Uri "http://localhost:8056/server/health" -Method Get -TimeoutSec 2 -ErrorAction SilentlyContinue
+        if ($response.StatusCode -eq 200) {
+            $directusReady = $true
+            break
+        }
+    } catch {
+        # Continue retrying
+    }
+    $retryCount++
+    Start-Sleep -Seconds 2
+}
+
+if (-not $directusReady) {
+    Write-Warning "Directus may not be fully ready, but continuing..."
+} else {
+    Write-Host "✓ Directus is ready" -ForegroundColor Green
+    Write-Host "Waiting for Directus to fully initialize..."
+    Start-Sleep -Seconds 5
+}
+
+# 6. Import Mock Data (Optional)
+Write-Host ""
+Write-Host "Importing mock data..."
+
+# Read .env variables
+$adminEmail = $null
+$adminPassword = $null
+$publicUrl = $null
+$importedCount = 0
+
+if (Test-Path ".env") {
+    $envContent = Get-Content ".env"
+    foreach ($line in $envContent) {
+        if ($line -match "^ADMIN_EMAIL=(.+)") {
+            $adminEmail = $matches[1].Trim('"', "'", " ")
+        }
+        if ($line -match "^ADMIN_PASSWORD=(.+)") {
+            $adminPassword = $matches[1].Trim('"', "'", " ")
+        }
+        if ($line -match "^PUBLIC_URL=(.+)") {
+            $publicUrl = $matches[1].Trim('"', "'", " ")
+        }
+    }
+}
+
+if ([string]::IsNullOrEmpty($publicUrl)) {
+    $publicUrl = "http://localhost:8056"
+}
+
+if (-not [string]::IsNullOrEmpty($adminEmail) -and -not [string]::IsNullOrEmpty($adminPassword)) {
+    # Function to import collection data
+    function Import-CollectionData {
+        param(
+            [string]$CollectionName,
+            [string]$JsonFile,
+            [string]$Token,
+            [string]$BaseUrl
+        )
+        
+        if (-not (Test-Path $JsonFile)) {
+            Write-Host "  ⚠ File not found: $JsonFile" -ForegroundColor Yellow
+            return $false
+        }
+        
+        $jsonContent = Get-Content $JsonFile -Raw
+        $items = $jsonContent | ConvertFrom-Json
+        
+        if ($items.Count -eq 0) {
+            Write-Host "  ⚠ No data in $JsonFile" -ForegroundColor Yellow
+            return $false
+        }
+        
+        $headers = @{
+            "Authorization" = "Bearer $Token"
+            "Content-Type" = "application/json"
+        }
+        
+        try {
+            $response = Invoke-RestMethod -Uri "$BaseUrl/items/$CollectionName" `
+                -Method Post `
+                -Headers $headers `
+                -Body $jsonContent `
+                -ErrorAction Stop
+            
+            Write-Host "  ✓ Imported $($items.Count) items to $CollectionName" -ForegroundColor Green
+            return $true
+        } catch {
+            $statusCode = $null
+            $errorBody = $_.ErrorDetails.Message
+            if ($_.Exception.Response) {
+                $statusCode = [int]$_.Exception.Response.StatusCode
+            }
+            
+            if ($statusCode -eq 409) {
+                Write-Host "  ⚠ Items already exist in $CollectionName, skipping..." -ForegroundColor Yellow
+                return $true
+            } elseif ($statusCode -eq 403) {
+                Write-Host "  ⚠ Collection '$CollectionName' does not exist or no permission" -ForegroundColor Yellow
+                if ($errorBody) {
+                    Write-Host "     Response: $errorBody"
+                }
+                Write-Host "     Please create the collection in Directus Admin first"
+                return $false
+            } else {
+                Write-Host "  ⚠ Failed to import $CollectionName" -ForegroundColor Yellow
+                if ($statusCode) {
+                    Write-Host "     HTTP Status: $statusCode"
+                }
+                if ($errorBody) {
+                    Write-Host "     Response: $errorBody"
+                } else {
+                    Write-Host "     Error: $($_.Exception.Message)"
+                }
+                return $false
+            }
+        }
+    }
+    
+    # Login to get token
+    Write-Host "Logging in to Directus..."
+    $loginBody = @{
+        email = $adminEmail
+        password = $adminPassword
+    } | ConvertTo-Json
+    
+    try {
+        $loginResponse = Invoke-RestMethod -Uri "$publicUrl/auth/login" `
+            -Method Post `
+            -ContentType "application/json" `
+            -Body $loginBody `
+            -ErrorAction Stop
+        
+        $token = $loginResponse.data.access_token
+        
+        if ([string]::IsNullOrEmpty($token) -or $token -eq "null") {
+            Write-Host "⚠ Failed to get access token, skipping mock data import" -ForegroundColor Yellow
+            Write-Host "  Response: $($loginResponse | ConvertTo-Json)"
+        } else {
+            Write-Host "✓ Logged in successfully" -ForegroundColor Green
+            
+            # Note: Collections are auto-created by Directus from db/init.sql tables
+            # We just need to wait a bit for Directus to detect them
+            Write-Host "Waiting for Directus to detect collections from database..."
+            Start-Sleep -Seconds 3
+            
+            # Import collections
+            Write-Host ""
+            Write-Host "Importing mock data..."
+            $importedCount = 0
+            $totalCollections = 3
+            
+            if (Import-CollectionData "categories" "mock-data/categories-sample-data.json" $token $publicUrl) {
+                $importedCount++
+            }
+            
+            if (Import-CollectionData "suppliers" "mock-data/suppliers-sample-data.json" $token $publicUrl) {
+                $importedCount++
+            }
+            
+            if (Import-CollectionData "products" "mock-data/products-sample-data.json" $token $publicUrl) {
+                $importedCount++
+            }
+            
+            if ($importedCount -gt 0) {
+                Write-Host "✓ Mock data imported successfully ($importedCount/$totalCollections collections)" -ForegroundColor Green
+            }
+        }
+    } catch {
+        Write-Host "⚠ Failed to login to Directus, skipping mock data import" -ForegroundColor Yellow
+        Write-Host "  Error: $($_.Exception.Message)"
+    }
+} else {
+    Write-Host "⚠ Admin credentials not found in .env, skipping mock data import" -ForegroundColor Yellow
+    Write-Host "  To enable auto-import, ensure ADMIN_EMAIL and ADMIN_PASSWORD are set in .env"
+}
+
+Write-Host ""
 Write-Host "========================================"
-Write-Host " Directus is ready at http://localhost:8056"
+Write-Host " Directus is ready at $publicUrl"
 Write-Host " Extensions loaded:"
 Write-Host "  - bulk-update (API Endpoint)"
 Write-Host "  - currency-format (Display)"
+if ($importedCount -gt 0) {
+    Write-Host "  - Mock data imported"
+}
 Write-Host "========================================"
